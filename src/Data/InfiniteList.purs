@@ -39,21 +39,6 @@ data InfiniteList b a = IL (b -> a) (b -> b) b
 instance infiniteFunctor :: Functor (InfiniteList a) where
   map f (IL conv iter start) = IL (f <<< conv) iter start
 
-{-
-class (Functor f) <= Filterable f where
-  partitionMap :: forall a l r.
-    (a -> Either l r) -> f a -> { left :: f l, right :: f r }
-
-  partition :: forall a.
-    (a -> Boolean) -> f a -> { no :: f a, yes :: f a }
-
-  filterMap :: forall a b.
-    (a -> Maybe b) -> f a -> f b
-
-  filter :: forall a.
-    (a -> Boolean) -> f a -> f a
--}
-
 instance infiniteFilterable :: F.Filterable (InfiniteList a) where
   partitionMap = partitionMapInternal
 
@@ -125,6 +110,9 @@ head (IL conv _ x) = conv x
 tail :: forall a b. InfiniteList b a -> InfiniteList b a
 tail (IL conv iter current) = IL conv iter (iter current)
 
+uncons :: forall a b. InfiniteList b a -> { head :: a, tail :: InfiniteList b a }
+uncons (IL conv iter start) = { head: conv start, tail: IL conv iter (iter start) }
+
 take :: forall a b. Int -> InfiniteList b a -> L.List a
 take n il | n <= 0    = L.Nil
           | otherwise = head il `L.Cons` take (n - 1) (tail il)
@@ -137,8 +125,8 @@ takeWhile :: forall a b. (a -> Boolean) -> InfiniteList b a -> L.List a
 takeWhile keep = go
   where
     go :: InfiniteList b a -> L.List a
-    go il = let h = head il
-            in if keep h then h `L.Cons` go (tail il) else L.Nil
+    go il = let u = uncons il
+            in if keep u.head then u.head `L.Cons` go u.tail else L.Nil
 
 dropWhile :: forall a b. (a -> Boolean) -> InfiniteList b a -> InfiniteList b a
 dropWhile discard = go
