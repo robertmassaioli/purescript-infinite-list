@@ -1,0 +1,11 @@
+{
+  "name": "purescript-infinite-list",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "output"
+  ],
+  "dependencies": {},
+  "devDependencies": {}
+}
