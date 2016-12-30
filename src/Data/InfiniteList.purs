@@ -11,7 +11,7 @@ module Data.InfiniteList
   , zip
   ) where
 
-import Data.Array as A 
+import Data.Array as A
 import Data.Either as E
 import Data.Filterable as F
 import Data.List as L
