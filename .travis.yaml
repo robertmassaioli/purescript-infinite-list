@@ -1,7 +1,7 @@
 language: node_js
 dist: trusty
 sudo: required
-node_js: 6
+node_js: node
 env:
   - PATH=$HOME/purescript:$PATH
 install:
@@ -20,4 +20,3 @@ after_success:
 - >-
   test $TRAVIS_TAG &&
   echo $GITHUB_TOKEN | pulp login &&
-#  echo y | pulp publish --no-push
