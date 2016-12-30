@@ -105,19 +105,3 @@ filterableSpecs = describe "Filterable" do
     let il = iterate ((+) 1) 1
     let result = filter (\x -> (x `mod` 3 == 0) || (x `mod` 5 == 0)) il
     takeWhile (\x -> x <= 20) result `shouldEqual` L.fromFoldable [3, 5, 6, 9, 10, 12, 15, 18, 20]
-
--- Iterate
--- Repeat
-{-
-, iterate
-, repeat
-, take
-, drop
-, takeWhile
-, dropWhile
-, head
-, tail
-, zip
-, map
-, filter
--}
