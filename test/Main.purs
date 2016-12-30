@@ -13,6 +13,8 @@ import Prelude
 import Data.InfiniteList
 import Data.List as L
 import Data.NonEmpty ((:|))
+import Data.Tuple
+import Data.Filterable (filter)
 
 main :: forall e. Eff (console :: CONSOLE, process :: PROCESS | e) Unit
 main = run [consoleReporter] allSpecs
@@ -62,22 +64,47 @@ repeatedSpecs = describe "Repeated infinite lists" do
 
   it "strange numbers repeated work" do
     let il = repeat (1 :| L.fromFoldable [5, 2, 1, 3, 4])
-    take 5 il `shouldEqual` L.fromFoldable [1, 5, 2, 1, 3]
+    take 8 il `shouldEqual` L.fromFoldable [1, 5, 2, 1, 3, 4, 1, 5]
 
 dropWhileSpecs = describe "dropWhile" do
-  pending "The 'head' after a 'dropWhile' should return something that matches the condition"
-  pending "dropWhile should skip many elements"
+  it "'head' after a 'dropWhile' should return something that matches the condition" do
+    let il = iterate ((+) 1) 0
+    let result = dropWhile (\x -> x < 10) il
+    head il `shouldEqual` 0
+    head result `shouldEqual` 10
+  it "dropWhile should skip many elements" do
+    let il = iterate ((+) 1) 0
+    let result = dropWhile (\x -> x < 100000) il
+    head result `shouldEqual` 100000
 
 takeWhileSpecs = describe "takeWhile" do
-  pending "takeWhile should generate a good list of elements"
+  it "takeWhile should generate a good list of elements" do
+    let il = iterate ((+) 1) 0
+    takeWhile (\x -> x < 10) il `shouldEqual` L.fromFoldable [0, 1, 2, 3, 4, 5, 6, 7, 8 ,9]
+  it "takeWhile on many elements should be fast" do
+    let il = iterate ((+) 1) 0
+    let result = takeWhile (\x -> x < 10000) il
+    L.length result `shouldEqual` 10000
 
 functorSpecs = describe "Functor" do
-  pending "can increment an infinite list by five"
-  pending "can map an infinite list to boolean values"
-  pending "can map an infinite list into tuple values"
+  it "can increment an infinite list by five" do
+    let il = iterate ((+) 1) 0
+    let result = map ((+) 5) il
+    take 5 result `shouldEqual` L.fromFoldable [5, 6, 7, 8, 9]
+  it "can map an infinite list to boolean values" do
+    let il = iterate ((+) 1) 0
+    let result = map (\x -> x `mod` 3 == 0) il
+    take 5 result `shouldEqual` L.fromFoldable [true, false, false, true, false]
+  it "can map an infinite list into tuple values" do
+    let il = iterate ((+) 1) 0
+    let result = map (\x -> Tuple x ("n: " <> show x)) il
+    take 5 result `shouldEqual` L.fromFoldable [Tuple 0 "n: 0", Tuple 1 "n: 1", Tuple 2 "n: 2", Tuple 3 "n: 3", Tuple 4 "n: 4"]
 
 filterableSpecs = describe "Filterable" do
-  pending "can filter numbers from an infinite list"
+  it "can filter numbers from an infinite list" do
+    let il = iterate ((+) 1) 1
+    let result = filter (\x -> (x `mod` 3 == 0) || (x `mod` 5 == 0)) il
+    takeWhile (\x -> x <= 20) result `shouldEqual` L.fromFoldable [3, 5, 6, 9, 10, 12, 15, 18, 20]
 
 -- Iterate
 -- Repeat
