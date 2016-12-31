@@ -74,8 +74,8 @@ dropWhileSpecs = describe "dropWhile" do
     head result `shouldEqual` 10
   it "dropWhile should skip many elements" do
     let il = iterate ((+) 1) 0
-    let result = dropWhile (\x -> x < 100000) il
-    head result `shouldEqual` 100000
+    let result = dropWhile (\x -> x < 10000) il
+    head result `shouldEqual` 10000
 
 takeWhileSpecs = describe "takeWhile" do
   it "takeWhile should generate a good list of elements" do
