@@ -1,3 +1,13 @@
+-- | This module allows the creation of infinite lists in Purescript where you
+-- | only pay the performance cost for each element in the infinite list when
+-- | it is extracted.
+-- |
+-- | Every infinite list requires three different classes of functions:
+-- |
+-- | * Generators of infinite lists (iterate, repeat)
+-- | * Manipulators of infinite lists (map, filter, zip, tail)
+-- | * Getters of data from infinite lists (head, take, takeWhile)
+
 module Data.InfiniteList
   ( InfiniteList
   , iterate
@@ -23,6 +33,10 @@ import Data.Tuple (Tuple(..), snd)
 import Partial.Unsafe (unsafePartialBecause)
 import Prelude ((-), (+), ($), (<<<), (<=), otherwise)
 
+-- | The datatype that represents an infinite list. The two type arguments are:
+-- |
+-- | * `a`: The type that will be returned by the getter methods.
+-- | * `b`: The base type for this infinite list that is being iterated over.
 data InfiniteList b a = IL (b -> a) (b -> b) b
 
 -- Can't implement these classes
@@ -84,9 +98,38 @@ filterInternal matches (IL conv iter start) = IL conv next nextStart
 
 -- We could possibly implement Apply if the need for it was there
 
+-- | ### Infinite list generators
+
+
+-- | Generate an infinite list by providing:
+-- |
+-- |  * a function to iterate from the previous value in the infinite list to the next AND
+-- |  * the first element in the infinite list to begin the iteration.
+-- |
+-- | For example, to generate the list of natural numbers you can do the following:
+-- |
+-- |     naturals = iterate ((+) 1) 1
+-- |
+-- | In english, "The natural numbers start at 1 and you can get the next natural
+-- | number by adding one to the prior number".
+-- |
+-- | Running time: `O(1)`
 iterate :: forall a. (a -> a) -> a -> InfiniteList a a
 iterate iter start = IL id iter start
 
+-- | Generate an infinite list by infinitely repeating a provided non-empty list.
+-- |
+-- | The list that is provided must be non-empty because it is impossible to repeat
+-- | an empty list and end up with a list with something in it.
+-- |
+-- | To see how this method works see the following example:
+-- |
+-- |     > IL.take 15 $ repeat (0 :| fromFoldable [2, 1, 3])
+-- |     (0 : 2 : 1 : 3 : 0 : 2 : 1 : 3 : 0 : 2 : 1 : 3 : 0 : 2 : 1 : Nil)
+-- |
+-- |     >
+-- |
+-- | This is an infinite repeat of the list 0, 2, 1, 3.
 repeat :: forall a. NE.NonEmpty L.List a -> InfiniteList (Tuple Int a) a
 repeat oxs = IL snd iter firstVal
   where
@@ -108,7 +151,7 @@ head :: forall a b. InfiniteList b a -> a
 head (IL conv _ x) = conv x
 
 tail :: forall a b. InfiniteList b a -> InfiniteList b a
-tail (IL conv iter current) = IL conv iter (iter current)
+tail il = (uncons il).tail
 
 uncons :: forall a b. InfiniteList b a -> { head :: a, tail :: InfiniteList b a }
 uncons (IL conv iter start) = { head: conv start, tail: IL conv iter (iter start) }

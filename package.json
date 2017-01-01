@@ -13,6 +13,7 @@
     "bower": "bower",
     "pulp": "pulp",
     "psci": "pulp psci",
+    "psc-docs": "psc-docs",
     "test": "pulp test"
   },
   "author": "Robert massaioli",
