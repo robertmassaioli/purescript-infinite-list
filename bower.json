@@ -1,5 +1,13 @@
 {
   "name": "purescript-infinite-list",
+  "authors": [
+    "Robert Massaioli <robertmassaioli@gmail.com>"
+  ],
+  "keywords": [
+    "purescript",
+    "infinite",
+    "list"
+  ],
   "ignore": [
     "**/.*",
     "node_modules",
@@ -16,5 +24,6 @@
     "purescript-spec": "^0.10.0",
     "purescript-psci-support": "^2.0.0",
     "purescript-console": "^2.0.0"
-  }
+  },
+  "license": "MIT"
 }
