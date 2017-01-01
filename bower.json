@@ -3,6 +3,10 @@
   "authors": [
     "Robert Massaioli <robertmassaioli@gmail.com>"
   ],
+  "repository": {                                                          
+      "type": "git",                                                         
+      "url": "git@github.com:robertmassaioli/purescript-infinite-list.git"            
+   },
   "keywords": [
     "purescript",
     "infinite",
