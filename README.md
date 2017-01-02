@@ -1,5 +1,7 @@
 # purescript-infinite-list: Infinite lists in purescript
 
+[![Build Status](https://travis-ci.org/robertmassaioli/purescript-infinite-list.svg?branch=master)](https://travis-ci.org/robertmassaioli/purescript-infinite-list)
+
 This language allows you to have infinite lists that are:
 
  - Type-safe
