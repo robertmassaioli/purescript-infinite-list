@@ -28,7 +28,6 @@ import Data.Array as A
 import Data.Either as E
 import Data.Filterable as F
 import Data.Filterable (filter) as Exports
-import Data.List as L
 import Data.NonEmpty as NE
 import Data.Function (id)
 import Data.Functor (class Functor, map)
