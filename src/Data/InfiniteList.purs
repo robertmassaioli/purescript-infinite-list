@@ -18,18 +18,22 @@ module Data.InfiniteList
   , dropWhile
   , head
   , tail
+  , uncons
   , zip
+  , zipWith
+  , module Exports
   ) where
 
 import Data.Array as A
 import Data.Either as E
 import Data.Filterable as F
+import Data.Filterable (filter) as Exports
 import Data.List as L
 import Data.NonEmpty as NE
 import Data.Function (id)
 import Data.Functor (class Functor, map)
 import Data.Maybe (Maybe(..), isJust, fromJust)
-import Data.Tuple (Tuple(..), snd)
+import Data.Tuple (Tuple(..), snd, uncurry)
 import Partial.Unsafe (unsafePartialBecause)
 import Prelude ((-), (+), ($), (<<<), (<=), otherwise)
 
@@ -98,8 +102,6 @@ filterInternal matches (IL conv iter start) = IL conv next nextStart
 
 -- We could possibly implement Apply if the need for it was there
 
--- | ### Infinite list generators
-
 
 -- | Generate an infinite list by providing:
 -- |
@@ -130,10 +132,17 @@ iterate iter start = IL id iter start
 -- |     >
 -- |
 -- | This is an infinite repeat of the list 0, 2, 1, 3.
-repeat :: forall a. NE.NonEmpty L.List a -> InfiniteList (Tuple Int a) a
+-- |
+-- | Note: You will notice that an `InfiniteList (Tuple Int a) a` is returned, the
+-- | reason for the tuple in the type is that the non-empty list that is passed in
+-- | is indexed so that we can always tell what the next element should be from a
+-- | prior element.
+-- |
+-- | Running time: `O(1)`
+repeat :: forall a. NE.NonEmpty Array a -> InfiniteList (Tuple Int a) a
 repeat oxs = IL snd iter firstVal
   where
-    ref = index 0 (L.toUnfoldable <<< NE.oneOf $ oxs)
+    ref = index 0 (NE.oneOf $ oxs)
 
     index :: Int -> Array a -> Array (Tuple Int a)
     index n values = case A.uncons values of
@@ -147,39 +156,137 @@ repeat oxs = IL snd iter firstVal
 
     firstVal = Tuple 0 (NE.head oxs)
 
+-- | Get the first element of an infinite list. For example:
+-- |
+-- |     (head $ iterate ((+) 1) 1) `shouldEqual` 1
+-- |
+-- | The first value in this example infinite list will be a one.
+-- |
+-- | The maximum performance cost of this method will be however much it takes to
+-- | convert a value of type `b` to type `a`.
 head :: forall a b. InfiniteList b a -> a
 head (IL conv _ x) = conv x
 
+-- | Return the infinite list without the first element. For example:
+-- |
+-- |     (head <<< tail $ iterate ((+) 1) 1) `shouldEqual` 2
+-- |
+-- | In this example, we generate the list of natural numbers, drop the first element
+-- | and get then following element. This will return the second element of the natural numbers
+-- | and, naturally, it is two.
+-- |
+-- | The maximum performance cost of this method will be however much it takes to
+-- | iterate from the previous value of `b` to the next value of `b`.
 tail :: forall a b. InfiniteList b a -> InfiniteList b a
 tail il = (uncons il).tail
 
+-- | Returns an object that contains two values: `head` and `tail`. These two
+-- | values will contain the same data as if you had called the respective head
+-- | and tail functions on the original list. This method should only be used as
+-- | a convenience method to simplify the head and tail calls.
+-- |
+-- | Semantically speaking, this method separates the first element of an infinite
+-- | list from the remaining elements of the infinite list.
+-- |
+-- | For example:
+-- |
+-- |     let s = uncons $ iterate ((+) 1) 1
+-- |     s.head `shouldEqual` 1
+-- |     head s.tail `shouldEqual` 2
+-- |
+-- | The performance cost of this method should be the summation of the respective
+-- | head and tail calls that you would need to make to get the same result.
 uncons :: forall a b. InfiniteList b a -> { head :: a, tail :: InfiniteList b a }
 uncons (IL conv iter start) = { head: conv start, tail: IL conv iter (iter start) }
 
-take :: forall a b. Int -> InfiniteList b a -> L.List a
-take n il | n <= 0    = L.Nil
-          | otherwise = head il `L.Cons` take (n - 1) (tail il)
+-- | Take the first 'n' elements from an infinite list.
+-- |
+-- | For example:
+-- |
+-- |     take 10 (iterate ((+) 1) 1) `shouldEqual` [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+-- |
+-- | The performance cost of this function will be approximately O(n) * m where m
+-- | is the cost of performing n uncons operations.
+take :: forall a b. Int -> InfiniteList b a -> Array a
+take = _take uncons
+-- TODO when Tail Call Optimization modulo cons is implemented then use this instead: https://github.com/purescript/purescript/issues/2154
+{-
+take on oil = L.toUnfoldable $ go on oil
+  where
+    go :: forall a b. Int -> InfiniteList b a -> L.List a
+    go n il | n <= 0    = L.Nil
+            | otherwise = head il `L.Cons` go (n - 1) (tail il)
+-}
 
+foreign import _take :: forall a b. (InfiniteList b a -> { head :: a, tail :: InfiniteList b a }) -> Int -> InfiniteList b a -> Array a
+
+-- | Drop the first 'n' elements from an infinite list and return the resultant infinite list.
+-- |
+-- | For example:
+-- |
+-- |     head <<< drop 10 $ (iterate ((+) 1) 1) `shouldEqual` 11
+-- |
+-- | The performance cost of this function will be approximately O(n) * m where m is the
+-- | cost of performing one tail operation.
 drop :: forall a b. Int -> InfiniteList b a -> InfiniteList b a
 drop n il | n <= 0    = il
           | otherwise = drop (n - 1) (tail il)
 
-takeWhile :: forall a b. (a -> Boolean) -> InfiniteList b a -> L.List a
-takeWhile keep = go
+-- | Return all of the elements at the start of the infinite list that match the
+-- | provided condition.
+-- |
+-- | For example, to get all of the numbers that, when squared, are less than a thousand:
+-- |
+-- |     takeWhile (\x -> (x `pow` 2) < 128) $ iterate ((+) 1) 1 `shouldEqual` [1,2,3,4,5,6,7,8,9,10,11]
+takeWhile :: forall a b. (a -> Boolean) -> InfiniteList b a -> Array a
+takeWhile = _takeWhile uncons
+-- TODO when Tail Call Optimization modulo cons is implemented then use this instead: https://github.com/purescript/purescript/issues/2154
+{-
+takeWhile :: forall a b. (a -> Boolean) -> InfiniteList b a -> Array a
+takeWhile keep = L.toUnfoldable <<< go
   where
     go :: InfiniteList b a -> L.List a
     go il = let u = uncons il
             in if keep u.head then u.head `L.Cons` go u.tail else L.Nil
+-}
 
+foreign import _takeWhile :: forall a b. (InfiniteList b a -> { head :: a, tail :: InfiniteList b a }) -> (a -> Boolean) -> InfiniteList b a -> Array a
+
+-- | Drop all of the elements from the start of an infinite list that match the
+-- | provided condition.
+-- |
+-- | For example, to drop all of the elements from an infinite list who have log
+-- | values of less than 10:
+-- |
+-- |     (head <<< dropWhile (\x -> log x < 10.0) $ iterate ((+) 1.0) 1.0) `shouldEqual` 22027.0
 dropWhile :: forall a b. (a -> Boolean) -> InfiniteList b a -> InfiniteList b a
 dropWhile discard = go
   where
     go :: InfiniteList b a -> InfiniteList b a
     go il = if discard (head il) then go (tail il) else il
 
+-- | Zip two infinite lists together.
+-- |
+-- | The resultant infinite list returns tuples of the original list values. For example:
+-- |
+-- |     let increasing = iterate ((+) 1)
+-- |     let pairs = zip (increasing 0) (increasing 1)
+-- |     take 5 pairs `shouldEqual` [(Tuple 0 1),(Tuple 1 2),(Tuple 2 3),(Tuple 3 4),(Tuple 4 5)]
+-- |
+-- | Running time: O(1)
 zip :: forall a b c d. InfiniteList c a -> InfiniteList d b -> InfiniteList (Tuple c d) (Tuple a b)
 zip (IL lConv lIter lStart) (IL rConv rIter rStart) = IL conv iter start
   where
     conv (Tuple x y) = Tuple (lConv x) (rConv y)
     iter (Tuple x y) = Tuple (lIter x) (rIter y)
     start = Tuple lStart rStart
+
+-- | Zip two infinite lists together with a data joining function.
+-- |
+-- | For example:
+-- |
+-- |     let increasing = iterate ((+) 1)
+-- |     let items = zipWith (\n x -> n <> show x) (iterate id "Name: ") (increasing 1)
+-- |     take 5 items `shouldEqual` ["Name: 1","Name: 2","Name: 3","Name: 4","Name: 5"]
+zipWith :: forall a b c d e. (a -> b -> e) -> InfiniteList c a -> InfiniteList d b -> InfiniteList (Tuple c d) e
+zipWith f a = map (uncurry f) <<< zip a
