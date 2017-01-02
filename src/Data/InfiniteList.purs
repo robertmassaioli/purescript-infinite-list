@@ -101,6 +101,7 @@ filterInternal matches (IL conv iter start) = IL conv next nextStart
 
 -- We could possibly implement Apply if the need for it was there
 
+-- ### Generators
 
 -- | Generate an infinite list by providing:
 -- |
@@ -109,7 +110,7 @@ filterInternal matches (IL conv iter start) = IL conv next nextStart
 -- |
 -- | For example, to generate the list of natural numbers you can do the following:
 -- |
--- |     naturals = iterate ((+) 1) 1
+-- |     naturals = iterate (_ + 1) 1
 -- |
 -- | In english, "The natural numbers start at 1 and you can get the next natural
 -- | number by adding one to the prior number".
@@ -157,7 +158,7 @@ repeat oxs = IL snd iter firstVal
 
 -- | Get the first element of an infinite list. For example:
 -- |
--- |     (head $ iterate ((+) 1) 1) `shouldEqual` 1
+-- |     (head $ iterate (_ + 1) 1) `shouldEqual` 1
 -- |
 -- | The first value in this example infinite list will be a one.
 -- |
@@ -168,7 +169,7 @@ head (IL conv _ x) = conv x
 
 -- | Return the infinite list without the first element. For example:
 -- |
--- |     (head <<< tail $ iterate ((+) 1) 1) `shouldEqual` 2
+-- |     (head <<< tail $ iterate (_ + 1) 1) `shouldEqual` 2
 -- |
 -- | In this example, we generate the list of natural numbers, drop the first element
 -- | and get then following element. This will return the second element of the natural numbers
@@ -189,7 +190,7 @@ tail il = (uncons il).tail
 -- |
 -- | For example:
 -- |
--- |     let s = uncons $ iterate ((+) 1) 1
+-- |     let s = uncons $ iterate (_ + 1) 1
 -- |     s.head `shouldEqual` 1
 -- |     head s.tail `shouldEqual` 2
 -- |
@@ -202,7 +203,7 @@ uncons (IL conv iter start) = { head: conv start, tail: IL conv iter (iter start
 -- |
 -- | For example:
 -- |
--- |     take 10 (iterate ((+) 1) 1) `shouldEqual` [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+-- |     take 10 (iterate (_ + 1) 1) `shouldEqual` [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 -- |
 -- | The performance cost of this function will be approximately O(n) * m where m
 -- | is the cost of performing n uncons operations.
@@ -223,7 +224,7 @@ foreign import _take :: forall a b. (InfiniteList b a -> { head :: a, tail :: In
 -- |
 -- | For example:
 -- |
--- |     head <<< drop 10 $ (iterate ((+) 1) 1) `shouldEqual` 11
+-- |     head <<< drop 10 $ (iterate (_ + 1) 1) `shouldEqual` 11
 -- |
 -- | The performance cost of this function will be approximately O(n) * m where m is the
 -- | cost of performing one tail operation.
@@ -236,7 +237,7 @@ drop n il | n <= 0    = il
 -- |
 -- | For example, to get all of the numbers that, when squared, are less than a thousand:
 -- |
--- |     takeWhile (\x -> (x `pow` 2) < 128) $ iterate ((+) 1) 1 `shouldEqual` [1,2,3,4,5,6,7,8,9,10,11]
+-- |     takeWhile (\x -> (x `pow` 2) < 128) $ iterate (_ + 1) 1 `shouldEqual` [1,2,3,4,5,6,7,8,9,10,11]
 takeWhile :: forall a b. (a -> Boolean) -> InfiniteList b a -> Array a
 takeWhile = _takeWhile uncons
 -- TODO when Tail Call Optimization modulo cons is implemented then use this instead: https://github.com/purescript/purescript/issues/2154
@@ -257,7 +258,7 @@ foreign import _takeWhile :: forall a b. (InfiniteList b a -> { head :: a, tail 
 -- | For example, to drop all of the elements from an infinite list who have log
 -- | values of less than 10:
 -- |
--- |     (head <<< dropWhile (\x -> log x < 10.0) $ iterate ((+) 1.0) 1.0) `shouldEqual` 22027.0
+-- |     (head <<< dropWhile (\x -> log x < 10.0) $ iterate (_ + 1.0) 1.0) `shouldEqual` 22027.0
 dropWhile :: forall a b. (a -> Boolean) -> InfiniteList b a -> InfiniteList b a
 dropWhile discard = go
   where
@@ -268,7 +269,7 @@ dropWhile discard = go
 -- |
 -- | The resultant infinite list returns tuples of the original list values. For example:
 -- |
--- |     let increasing = iterate ((+) 1)
+-- |     let increasing = iterate (_ + 1)
 -- |     let pairs = zip (increasing 0) (increasing 1)
 -- |     take 5 pairs `shouldEqual` [(Tuple 0 1),(Tuple 1 2),(Tuple 2 3),(Tuple 3 4),(Tuple 4 5)]
 -- |
@@ -284,7 +285,7 @@ zip (IL lConv lIter lStart) (IL rConv rIter rStart) = IL conv iter start
 -- |
 -- | For example:
 -- |
--- |     let increasing = iterate ((+) 1)
+-- |     let increasing = iterate (_ + 1)
 -- |     let items = zipWith (\n x -> n <> show x) (iterate id "Name: ") (increasing 1)
 -- |     take 5 items `shouldEqual` ["Name: 1","Name: 2","Name: 3","Name: 4","Name: 5"]
 zipWith :: forall a b c d e. (a -> b -> e) -> InfiniteList c a -> InfiniteList d b -> InfiniteList (Tuple c d) e

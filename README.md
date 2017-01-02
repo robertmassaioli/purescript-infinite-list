@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/robertmassaioli/purescript-infinite-list.svg?branch=master)](https://travis-ci.org/robertmassaioli/purescript-infinite-list)
 
-This language allows you to have infinite lists that are:
+This library allows you to have infinite lists that are:
 
  - Type-safe
  - Memory efficient
@@ -13,7 +13,7 @@ You can do this with an easy to understand interface that guarantees infinite li
 
 For example, to create an infinite list of the natural numbers:
 
-    naturals = iterate ((+) 1) 1
+    naturals = iterate (_ + 1) 1
 
 Then, to get only the elements that are divisible by three or five, you could write:
 
@@ -21,12 +21,12 @@ Then, to get only the elements that are divisible by three or five, you could wr
 
 You can then multiply every number in that list by two:
 
-    byThreeOrFiveDoubled = map (\x -> x * 2) byThreeOrFive
+    byThreeOrFiveDoubled = map (_ * 2) byThreeOrFive
 
 Running this through psci you then get the following results:
 
     > take 10 byThreeOrFiveDoubled
-    (6 : 10 : 12 : 18 : 20 : 24 : 30 : 36 : 40 : 42 : Nil)
+    [6,10,12,18,20,24,30,36,40,42]
 
     >
 
