@@ -126,8 +126,8 @@ iterate iter start = IL id iter start
 -- |
 -- | To see how this method works see the following example:
 -- |
--- |     > IL.take 15 $ repeat (0 :| fromFoldable [2, 1, 3])
--- |     (0 : 2 : 1 : 3 : 0 : 2 : 1 : 3 : 0 : 2 : 1 : 3 : 0 : 2 : 1 : Nil)
+-- |     > take 15 $ repeat (0 :| [2, 1, 3])
+-- |     [0,2,1,3,0,2,1,3,0,2,1,3,0,2,1]
 -- |
 -- |     >
 -- |
