@@ -22,7 +22,7 @@
     "purescript-arrays": "^3.0.0",
     "purescript-filterable": "^1.0.0",
     "purescript-lists": "^3.0.0",
-    "purescript-partial": "^1.1.2"
+    "purescript-partial": "^1.2.0"
   },
   "devDependencies": {
     "purescript-spec": "^0.10.0",
