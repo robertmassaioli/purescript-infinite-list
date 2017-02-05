@@ -26,21 +26,30 @@ module Data.InfiniteList
 
 import Data.Array as A
 import Data.Either as E
+import Data.Exists (Exists, mkExists, runExists)
 import Data.Filterable as F
-import Data.Filterable (filter) as Exports
 import Data.NonEmpty as NE
+import Data.Filterable (filter) as Exports
 import Data.Function (id)
 import Data.Functor (class Functor, map)
 import Data.Maybe (Maybe(..), isJust, fromJust)
 import Data.Tuple (Tuple(..), snd, uncurry)
 import Partial.Unsafe (unsafePartialBecause)
-import Prelude ((-), (+), ($), (<<<), (<=), otherwise)
+import Prelude ((-), (+), ($), (<<<), (<=), otherwise, flip)
+
+data InfiniteListF a b = ILF (b -> a) (b -> b) b
+
+newtype InfiniteList a = IL (Exists (InfiniteListF a))
+
+fRunExists :: forall f r. Exists f -> (forall a. f a -> r) -> r
+fRunExists = flip runExists
 
 -- | The datatype that represents an infinite list. The two type arguments are:
 -- |
 -- | * `a`: The type that will be returned by the getter methods.
 -- | * `b`: The base type for this infinite list that is being iterated over.
-data InfiniteList b a = IL (b -> a) (b -> b) b
+--data InfiniteList a b = IL (b -> a) (b -> b) b
+
 
 -- Can't implement these classes
 -- Eq: can't compare functions
@@ -53,10 +62,13 @@ data InfiniteList b a = IL (b -> a) (b -> b) b
 -- Alt: No, for the same reason as semigroup
 -- Plus: Depends on Alt
 
-instance infiniteFunctor :: Functor (InfiniteList a) where
-  map f (IL conv iter start) = IL (f <<< conv) iter start
+instance infiniteFunctor :: Functor InfiniteList where
+  map f (IL il) = IL (mkExists (fRunExists il (map' f)))
 
-instance infiniteFilterable :: F.Filterable (InfiniteList a) where
+map' :: forall a b c. (a -> b) -> InfiniteListF a c -> InfiniteListF b c
+map' f' (ILF conv iter start) = ILF (f' <<< conv) iter start
+
+instance infiniteFilterable :: F.Filterable (InfiniteListF a) where
   partitionMap = partitionMapInternal
 
   partition = partitionInternal
@@ -65,7 +77,7 @@ instance infiniteFilterable :: F.Filterable (InfiniteList a) where
 
   filter = filterInternal
 
-partitionMapInternal :: forall a b l r. (a -> E.Either l r) -> InfiniteList b a -> { left :: InfiniteList b l, right :: InfiniteList b r }
+partitionMapInternal :: forall a b l r. (a -> E.Either l r) -> InfiniteListF a b -> { left :: InfiniteListF b l, right :: InfiniteListF b r }
 partitionMapInternal f il = {
     left: fromLeft applied,
     right: fromRight applied
@@ -73,24 +85,24 @@ partitionMapInternal f il = {
   where
     applied = map f il
 
-fromLeft :: forall a b c. InfiniteList b (E.Either a c) -> InfiniteList b a
+fromLeft :: forall a b c. InfiniteListF (E.Either a c) b -> InfiniteListF a b
 fromLeft = map (unsafePartialBecause "We have filtered on only the left elements" E.fromLeft) <<< filterInternal E.isLeft
 
-fromRight :: forall a b c. InfiniteList b (E.Either c a) -> InfiniteList b a
+fromRight :: forall a b c. InfiniteListF (E.Either a c) b -> InfiniteListF a b
 fromRight = map (unsafePartialBecause "We have filtered on only the right elements" E.fromRight) <<< filterInternal E.isRight
 
-partitionInternal :: forall a b. (a -> Boolean) -> InfiniteList b a -> { no :: InfiniteList b a, yes :: InfiniteList b a }
+partitionInternal :: forall a b. (a -> Boolean) -> InfiniteListF a b -> { no :: InfiniteListF a b, yes :: InfiniteListF a b }
 partitionInternal p xs = let o = partitionMapInternal (F.eitherBool p) xs
                          in {no: o.left, yes: o.right}
 
-filterMapInternal :: forall a b c. (a -> Maybe c) -> InfiniteList b a -> InfiniteList b c
+filterMapInternal :: forall a b c. (a -> Maybe c) -> InfiniteListF a b -> InfiniteListF c b
 filterMapInternal f = catMaybes <<< map f
 
-catMaybes :: forall b a. InfiniteList b (Maybe a) -> InfiniteList b a
+catMaybes :: forall b a. InfiniteListF (Maybe a) b -> InfiniteListF a b
 catMaybes = map (unsafePartialBecause "We have filtered on only the Just elements" fromJust) <<< filterInternal isJust
 
-filterInternal :: forall a b. (a -> Boolean) -> InfiniteList b a -> InfiniteList b a
-filterInternal matches (IL conv iter start) = IL conv next nextStart
+filterInternal :: forall a b. (a -> Boolean) -> InfiniteListF a b -> InfiniteListF a b
+filterInternal matches (ILF conv iter start) = ILF conv next nextStart
   where
     nextStart = if matches' start then start else next start
 
@@ -116,8 +128,8 @@ filterInternal matches (IL conv iter start) = IL conv next nextStart
 -- | number by adding one to the prior number".
 -- |
 -- | Running time: `O(1)`
-iterate :: forall a. (a -> a) -> a -> InfiniteList a a
-iterate iter start = IL id iter start
+iterate :: forall a. (a -> a) -> a -> InfiniteListF a a
+iterate iter start = ILF id iter start
 
 -- | Generate an infinite list by infinitely repeating a provided non-empty list.
 -- |
@@ -139,8 +151,8 @@ iterate iter start = IL id iter start
 -- | prior element.
 -- |
 -- | Running time: `O(1)`
-repeat :: forall a. NE.NonEmpty Array a -> InfiniteList (Tuple Int a) a
-repeat oxs = IL snd iter firstVal
+repeat :: forall a. NE.NonEmpty Array a -> InfiniteListF a (Tuple Int a)
+repeat oxs = ILF snd iter firstVal
   where
     ref = index 0 (NE.oneOf $ oxs)
 
@@ -164,8 +176,8 @@ repeat oxs = IL snd iter firstVal
 -- |
 -- | The maximum performance cost of this method will be however much it takes to
 -- | convert a value of type `b` to type `a`.
-head :: forall a b. InfiniteList b a -> a
-head (IL conv _ x) = conv x
+head :: forall a b. InfiniteListF a b -> a
+head (ILF conv _ x) = conv x
 
 -- | Return the infinite list without the first element. For example:
 -- |
@@ -177,7 +189,7 @@ head (IL conv _ x) = conv x
 -- |
 -- | The maximum performance cost of this method will be however much it takes to
 -- | iterate from the previous value of `b` to the next value of `b`.
-tail :: forall a b. InfiniteList b a -> InfiniteList b a
+tail :: forall a b. InfiniteListF a b -> InfiniteListF a b
 tail il = (uncons il).tail
 
 -- | Returns an object that contains two values: `head` and `tail`. These two
@@ -196,8 +208,8 @@ tail il = (uncons il).tail
 -- |
 -- | The performance cost of this method should be the summation of the respective
 -- | head and tail calls that you would need to make to get the same result.
-uncons :: forall a b. InfiniteList b a -> { head :: a, tail :: InfiniteList b a }
-uncons (IL conv iter start) = { head: conv start, tail: IL conv iter (iter start) }
+uncons :: forall a b. InfiniteListF a b -> { head :: a, tail :: InfiniteListF a b }
+uncons (ILF conv iter start) = { head: conv start, tail: ILF conv iter (iter start) }
 
 -- | Take the first 'n' elements from an infinite list.
 -- |
@@ -207,18 +219,18 @@ uncons (IL conv iter start) = { head: conv start, tail: IL conv iter (iter start
 -- |
 -- | The performance cost of this function will be approximately O(n) * m where m
 -- | is the cost of performing n uncons operations.
-take :: forall a b. Int -> InfiniteList b a -> Array a
+take :: forall a b. Int -> InfiniteListF a b -> Array a
 take = _take uncons
 -- TODO when Tail Call Optimization modulo cons is implemented then use this instead: https://github.com/purescript/purescript/issues/2154
 {-
 take on oil = L.toUnfoldable $ go on oil
   where
-    go :: forall a b. Int -> InfiniteList b a -> L.List a
+    go :: forall a b. Int -> InfiniteList a b -> L.List a
     go n il | n <= 0    = L.Nil
             | otherwise = head il `L.Cons` go (n - 1) (tail il)
 -}
 
-foreign import _take :: forall a b. (InfiniteList b a -> { head :: a, tail :: InfiniteList b a }) -> Int -> InfiniteList b a -> Array a
+foreign import _take :: forall a b. (InfiniteListF a b -> { head :: a, tail :: InfiniteListF a b }) -> Int -> InfiniteListF a b -> Array a
 
 -- | Drop the first 'n' elements from an infinite list and return the resultant infinite list.
 -- |
@@ -228,7 +240,7 @@ foreign import _take :: forall a b. (InfiniteList b a -> { head :: a, tail :: In
 -- |
 -- | The performance cost of this function will be approximately O(n) * m where m is the
 -- | cost of performing one tail operation.
-drop :: forall a b. Int -> InfiniteList b a -> InfiniteList b a
+drop :: forall a b. Int -> InfiniteListF a b -> InfiniteListF b a
 drop n il | n <= 0    = il
           | otherwise = drop (n - 1) (tail il)
 
@@ -238,19 +250,19 @@ drop n il | n <= 0    = il
 -- | For example, to get all of the numbers that, when squared, are less than a thousand:
 -- |
 -- |     takeWhile (\x -> (x `pow` 2) < 128) $ iterate (_ + 1) 1 `shouldEqual` [1,2,3,4,5,6,7,8,9,10,11]
-takeWhile :: forall a b. (a -> Boolean) -> InfiniteList b a -> Array a
+takeWhile :: forall a b. (a -> Boolean) -> InfiniteListF a b -> Array a
 takeWhile = _takeWhile uncons
 -- TODO when Tail Call Optimization modulo cons is implemented then use this instead: https://github.com/purescript/purescript/issues/2154
 {-
-takeWhile :: forall a b. (a -> Boolean) -> InfiniteList b a -> Array a
+takeWhile :: forall a b. (a -> Boolean) -> InfiniteList a b -> Array a
 takeWhile keep = L.toUnfoldable <<< go
   where
-    go :: InfiniteList b a -> L.List a
+    go :: InfiniteList a b -> L.List a
     go il = let u = uncons il
             in if keep u.head then u.head `L.Cons` go u.tail else L.Nil
 -}
 
-foreign import _takeWhile :: forall a b. (InfiniteList b a -> { head :: a, tail :: InfiniteList b a }) -> (a -> Boolean) -> InfiniteList b a -> Array a
+foreign import _takeWhile :: forall a b. (InfiniteListF a b -> { head :: a, tail :: InfiniteListF a b }) -> (a -> Boolean) -> InfiniteListF a b -> Array a
 
 -- | Drop all of the elements from the start of an infinite list that match the
 -- | provided condition.
@@ -259,10 +271,10 @@ foreign import _takeWhile :: forall a b. (InfiniteList b a -> { head :: a, tail 
 -- | values of less than 10:
 -- |
 -- |     (head <<< dropWhile (\x -> log x < 10.0) $ iterate (_ + 1.0) 1.0) `shouldEqual` 22027.0
-dropWhile :: forall a b. (a -> Boolean) -> InfiniteList b a -> InfiniteList b a
+dropWhile :: forall a b. (a -> Boolean) -> InfiniteListF a b -> InfiniteListF b a
 dropWhile discard = go
   where
-    go :: InfiniteList b a -> InfiniteList b a
+    go :: InfiniteListF a b -> InfiniteListF b a
     go il = if discard (head il) then go (tail il) else il
 
 -- | Zip two infinite lists together.
@@ -274,8 +286,17 @@ dropWhile discard = go
 -- |     take 5 pairs `shouldEqual` [(Tuple 0 1),(Tuple 1 2),(Tuple 2 3),(Tuple 3 4),(Tuple 4 5)]
 -- |
 -- | Running time: O(1)
-zip :: forall a b c d. InfiniteList c a -> InfiniteList d b -> InfiniteList (Tuple c d) (Tuple a b)
-zip (IL lConv lIter lStart) (IL rConv rIter rStart) = IL conv iter start
+zip :: forall a b c d. InfiniteList a -> InfiniteList b -> InfiniteList (Tuple a b)
+zip = ilfRunExists zip'
+
+ilfRunExists :: forall a b c d e f. (InfiniteListF a c -> InfiniteListF b d -> InfiniteListF e f) -> InfiniteList a -> InfiniteList b -> InfiniteList e
+ilfRunExists (IL ila) (IL ilb) runILF = mkExists runA
+  where
+    runA = fRunExists ila runB
+    runB ilfA = fRunExists ilb (\ilfB -> runILF ilfA ilfB)
+
+zip' :: forall a b c d. InfiniteListF c a -> InfiniteListF d b -> InfiniteListF (Tuple c d) (Tuple a b)
+zip' (ILF lConv lIter lStart) (ILF rConv rIter rStart) = ILF conv iter start
   where
     conv (Tuple x y) = Tuple (lConv x) (rConv y)
     iter (Tuple x y) = Tuple (lIter x) (rIter y)
@@ -288,5 +309,5 @@ zip (IL lConv lIter lStart) (IL rConv rIter rStart) = IL conv iter start
 -- |     let increasing = iterate (_ + 1)
 -- |     let items = zipWith (\n x -> n <> show x) (iterate id "Name: ") (increasing 1)
 -- |     take 5 items `shouldEqual` ["Name: 1","Name: 2","Name: 3","Name: 4","Name: 5"]
-zipWith :: forall a b c d e. (a -> b -> e) -> InfiniteList c a -> InfiniteList d b -> InfiniteList (Tuple c d) e
+zipWith :: forall a b c. (a -> b -> c) -> InfiniteList a -> InfiniteList b -> InfiniteList c
 zipWith f a = map (uncurry f) <<< zip a

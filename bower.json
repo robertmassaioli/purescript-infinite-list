@@ -4,9 +4,9 @@
     "Robert Massaioli <robertmassaioli@gmail.com>"
   ],
   "repository": {
-      "type": "git",
-      "url": "git@github.com:robertmassaioli/purescript-infinite-list.git"
-   },
+    "type": "git",
+    "url": "git@github.com:robertmassaioli/purescript-infinite-list.git"
+  },
   "keywords": [
     "purescript",
     "infinite",
@@ -21,7 +21,8 @@
   "dependencies": {
     "purescript-arrays": "^3.0.0",
     "purescript-filterable": "^1.0.0",
-    "purescript-partial": "^1.2.0"
+    "purescript-partial": "^1.2.0",
+    "purescript-exists": "^2.0.0"
   },
   "devDependencies": {
     "purescript-spec": "^0.10.0",
